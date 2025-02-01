@@ -9,82 +9,74 @@ import (
 	"strings"
 )
 
-func evaluateSafty(arr []string) bool {
-	if len(arr) < 2 {
-		return true
-	}
-	first_num, err := strconv.Atoi(arr[0])
-	if err != nil {
-		fmt.Println("Error converting string to int:", err)
-	}
-	second_num, err := strconv.Atoi(arr[1])
-	if err != nil {
-		fmt.Println("Error converting string to int:", err)
-	}
-	isIncreasing := second_num > first_num
-	for i := 1; i < len(arr); i++ {
-		num, err := strconv.Atoi(arr[i])
-		if err != nil {
-			fmt.Println("Error converting string to int:", err)
-		}
-		num2, err := strconv.Atoi(arr[i-1])
-		if err != nil {
-			fmt.Println("Error converting string to int:", err)
-		}
-		diff := int(math.Abs(float64(num - num2)))
-		if diff < 1 || diff > 3 {
-			return false
-		}
-		if (isIncreasing && num < num2) || (!isIncreasing && num > num2) {
-			return false
-		}
-	}
-	return true
-}
-
-func canBeMadeSafe(report []string) bool {
-	for i := 0; i < len(report); i++ {
-		modified := append(report[:i], report[i+1:]...)
-		if evaluateSafty(modified) {
-			return true
-		}
-	}
-	return false
-}
-
-func processIput(filename string) int {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Println("Error openning file", err)
-	}
-
-	defer func() {
-		if err := file.Close(); err != nil {
-			fmt.Println("Error while closing file")
-		}
-	}()
-
-	scanner := bufio.NewScanner(file)
-
-	safeReport := 0
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		arr := strings.Split(line, " ")
-		isSafed := evaluateSafty(arr)
-		if isSafed {
-			safeReport += 1
-		} else {
-			if canBeMadeSafe(arr) {
-				safeReport += 1
-			}
-		}
-
-	}
-	return safeReport
-}
-
 func main() {
-	data := processIput("input.txt")
-	fmt.Println(data)
+	file, _ := os.Open("input.txt")
+	defer file.Close()
+
+	sc := bufio.NewScanner(file)
+
+	var reports [][]int
+	for sc.Scan() {
+		line := sc.Text()
+		parts := strings.Split(line, " ")
+		var levels []int
+		for _, part := range parts {
+			level, _ := strconv.Atoi(part)
+			levels = append(levels, level)
+		}
+		reports = append(reports, levels)
+	}
+
+	part2(reports)
+}
+
+func part1(reports [][]int) {
+	safes := 0
+	for _, levels := range reports {
+		if unsafeIdx(levels) == -1 {
+			safes++
+		}
+	}
+	fmt.Println("part1", safes)
+}
+
+func part2(reports [][]int) {
+	safes := 0
+	for _, levels := range reports {
+		unsafeAt := unsafeIdx(levels)
+		if unsafeAt == -1 {
+			safes++
+			continue
+		}
+		replacement1, replacement2 := unsafeAt-1, unsafeAt
+		change1Safe := unsafeIdx(deleteLevelAt(replacement1, levels)) == -1
+		change2Safe := unsafeIdx(deleteLevelAt(replacement2, levels)) == -1
+		if change1Safe || change2Safe {
+			safes++
+		}
+	}
+	fmt.Println("part2", safes)
+}
+
+func unsafeIdx(levels []int) int {
+	if len(levels) <= 1 {
+		return -1
+	}
+	increasing := levels[1] > levels[0]
+	for i := 1; i < len(levels); i++ {
+		diff := math.Abs(float64(levels[i]) - float64(levels[i-1]))
+		isSequential := (increasing && levels[i] > levels[i-1]) || (!increasing && levels[i] < levels[i-1])
+		validDiff := 1 <= diff && diff <= 3
+		if !isSequential || !validDiff {
+			return i
+		}
+	}
+	return -1
+}
+
+func deleteLevelAt(idx int, levels []int) []int {
+	deleted := make([]int, len(levels)-1)
+	copy(deleted[:idx], levels[:idx])
+	copy(deleted[idx:], levels[idx+1:])
+	return deleted
 }
